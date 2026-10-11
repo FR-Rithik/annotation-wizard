@@ -14,7 +14,8 @@ class Settings(BaseSettings):
 
     admin_api_key: str
 
-    model_path: str = "best.pt"
+    
+    model_path: str = "best.onnx"
     model_confidence_threshold: float = 0.25
     model_imgsz: int = 640
     max_upload_bytes: int = 1 * 1024 * 1024  # 1 MB

@@ -30,7 +30,7 @@ def test_health_when_model_is_unavailable(client, monkeypatch):
 def test_frontend_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Roadwatch" in response.text
+    assert "annotation-wizard" in response.text
 
 
 def test_database_errors_return_a_service_unavailable_response(client):
