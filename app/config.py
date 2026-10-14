@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     max_dataset_uncompressed_bytes: int = 100 * 1024 * 1024
     max_dataset_images: int = 100
     max_dataset_image_bytes: int = 5 * 1024 * 1024
+    dataset_storage_dir: str = "data/datasets"
 
     database_url_override: str | None = Field(
         default=None,

@@ -1,0 +1,17 @@
+Annotation Wizard Labeled Dataset
+=================================
+
+Dataset Name: test_dataset
+Job ID: 65d88e35e530
+Total images: 2
+Reviewed images: 1
+Images with annotations: 1
+Total annotations: 2
+
+Class Breakdown:
+- D00 (Longitudinal Crack): 1
+- D10 (Transverse Crack): 0
+- D20 (Alligator Crack): 0
+- D40 (Pothole): 1
+
+Exported at: 2026-10-13T12:44:32.204524Z

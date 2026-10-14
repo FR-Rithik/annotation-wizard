@@ -36,6 +36,8 @@ const elements = {
   zipFileLabel: document.querySelector("#zip-file-label"),
   zipClear: document.querySelector("#zip-clear-button"),
   zipLabel: document.querySelector("#zip-label-button"),
+  zipReview: document.querySelector("#zip-review-button"),
+  openSampleCanvas: document.querySelector("#open-sample-canvas-btn"),
   zipDownload: document.querySelector("#zip-download-button"),
   zipProgressArea: document.querySelector("#zip-progress-area"),
   zipProgressFill: document.querySelector("#zip-progress-fill"),
@@ -423,13 +425,26 @@ async function connect() {
   elements.connect.disabled = true;
   elements.connect.textContent = "Checking…";
   try {
-    const response = await fetch("/auth/me", { headers: { "X-API-Key": key } });
+    const response = await fetch("/auth/me", {
+      headers: { "X-API-Key": key },
+      cache: "no-store",
+    });
     if (!response.ok) throw new Error(await readError(response));
     const client = await response.json();
     sessionStorage.setItem(STORAGE_KEYS.apiKey, key);
     elements.connectionState.textContent = `Connected as ${client.name}`;
     elements.connectionState.dataset.state = "connected";
     elements.clientName.textContent = client.name;
+
+    const guideWelcome = document.querySelector("#guide-welcome-msg");
+    if (guideWelcome) {
+      guideWelcome.textContent = `Welcome back, ${client.name}!`;
+    }
+    const guideBadge = document.querySelector("#guide-client-badge");
+    if (guideBadge) {
+      guideBadge.textContent = client.name;
+    }
+    hideAuthErrorBanner();
   } catch (error) {
     sessionStorage.removeItem(STORAGE_KEYS.apiKey);
     elements.connectionState.textContent = error.message || "Connection unavailable.";
@@ -440,6 +455,7 @@ async function connect() {
     elements.connect.textContent = "Connect";
   }
 }
+
 
 // ─── 13. Analyze (Single Image) ───
 async function analyze() {
@@ -513,6 +529,7 @@ function selectZipFile(file) {
   elements.zipFileLabel.textContent = `${file.name} (${formatFileSize(file.size)})`;
   elements.zipDropZone.classList.add("has-file");
   elements.zipLabel.disabled = false;
+  if (elements.zipReview) elements.zipReview.disabled = false;
   setMessage(elements.zipFormMessage);
 }
 
@@ -522,6 +539,7 @@ function resetZipUpload() {
   elements.zipFileLabel.textContent = "Drop a ZIP archive here or click to browse";
   elements.zipDropZone.classList.remove("has-file");
   elements.zipLabel.disabled = true;
+  if (elements.zipReview) elements.zipReview.disabled = true;
   elements.zipLabel.style.display = "block";
   elements.zipDownload.style.display = "none";
   if (window.currentZipUrl) {
@@ -680,9 +698,112 @@ elements.zipLabel.addEventListener("click", labelDataset);
 // Activity log
 elements.clearActivity.addEventListener("click", clearActivity);
 
-// ─── 17. Boot ───
+// Disconnect button
+const disconnectBtn = document.querySelector("#disconnect-button");
+if (disconnectBtn) {
+  disconnectBtn.addEventListener("click", () => {
+    sessionStorage.removeItem(STORAGE_KEYS.apiKey);
+    window.location.href = "/";
+  });
+}
+
+// Retry verification button
+const authRetryBtn = document.querySelector("#auth-retry-btn");
+if (authRetryBtn) {
+  authRetryBtn.addEventListener("click", () => {
+    initWorkspaceSession();
+  });
+}
+
+// Dismiss guide button
+const dismissGuideBtn = document.querySelector("#dismiss-guide-btn");
+if (dismissGuideBtn) {
+  dismissGuideBtn.addEventListener("click", () => {
+    const guide = document.querySelector("#workspace-guide");
+    if (guide) guide.style.display = "none";
+  });
+}
+
+// ─── 17. Workspace Session & Auth Handling ───
+function showAuthErrorBanner(msg) {
+  const banner = document.querySelector("#auth-error-banner");
+  const text = document.querySelector("#auth-error-text");
+  if (banner && text) {
+    text.textContent = msg;
+    banner.classList.remove("hidden");
+  }
+}
+
+function hideAuthErrorBanner() {
+  const banner = document.querySelector("#auth-error-banner");
+  if (banner) banner.classList.add("hidden");
+}
+
+async function initWorkspaceSession() {
+  const storedKey = sessionStorage.getItem(STORAGE_KEYS.apiKey);
+  if (!storedKey) {
+    // If someone opens /workspace without a stored key, redirect them to /
+    window.location.replace("/");
+    return;
+  }
+
+  elements.apiKey.value = storedKey;
+  elements.connect.disabled = true;
+  elements.connect.textContent = "Checking…";
+  elements.connectionState.textContent = "Verifying session…";
+  elements.connectionState.dataset.state = "idle";
+  hideAuthErrorBanner();
+
+  try {
+    const response = await fetch("/auth/me", {
+      method: "GET",
+      headers: { "X-API-Key": storedKey },
+      cache: "no-store",
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      // Key invalid or revoked: remove stored key and redirect to landing page
+      sessionStorage.removeItem(STORAGE_KEYS.apiKey);
+      window.location.replace("/?error=auth_failed");
+      return;
+    }
+
+    if (!response.ok) {
+      const errDetail = await readError(response);
+      showAuthErrorBanner(`Temporary service error: ${errDetail}. Please retry.`);
+      elements.connectionState.textContent = "Service temporarily unavailable.";
+      elements.connectionState.dataset.state = "error";
+      return;
+    }
+
+    const client = await response.json();
+    elements.connectionState.textContent = `Connected as ${client.name}`;
+    elements.connectionState.dataset.state = "connected";
+    elements.clientName.textContent = client.name;
+
+    const guideWelcome = document.querySelector("#guide-welcome-msg");
+    if (guideWelcome) {
+      guideWelcome.textContent = `Welcome back, ${client.name}!`;
+    }
+    const guideBadge = document.querySelector("#guide-client-badge");
+    if (guideBadge) {
+      guideBadge.textContent = client.name;
+    }
+  } catch (error) {
+    // Service or network error: do not display false auth success
+    showAuthErrorBanner("Temporary service error: Unable to verify API key session with server.");
+    elements.connectionState.textContent = "Service unavailable.";
+    elements.connectionState.dataset.state = "error";
+  } finally {
+    elements.connect.disabled = false;
+    elements.connect.textContent = "Connect";
+  }
+}
+
+// ─── 18. Boot ───
 checkHealth();
 setInterval(checkHealth, 30000);
 renderActivityList();
 renderRegisterList();
-if (elements.apiKey.value) connect();
+initWorkspaceSession();
+

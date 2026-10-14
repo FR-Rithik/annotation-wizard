@@ -1,58 +1,62 @@
 # Annotation Wizard
-## Previously presented as Road Damage API.
 
 **Automated Road Damage Dataset Annotation using YOLOv8 and FastAPI**
 
-Annotation Wizard is a dataset annotation tool that automates object-detection labeling for road-damage images. Instead of manually drawing bounding boxes and labeling every image, users can upload a ZIP archive of images and let a trained YOLOv8 model generate annotations automatically.
+Previously presented as **Road Damage API**, Annotation Wizard has evolved from a single-image road-damage detection API into a tool for automating object-detection dataset annotation.
 
-The application processes the uploaded images, generates labels in YOLO format, and provides a downloadable ZIP containing the generated label files.
-
-Previously presented as **Road Damage API**, this project has evolved from a road-damage detection API into a tool focused on automating dataset annotation.
+Annotation Wizard uses a trained road-damage detection model to process images in batches. Users upload a ZIP archive containing road images, and the application generates YOLO-format annotation files that can be downloaded as a separate ZIP archive without the original images.
 
 ## Features
 
-* **Batch image processing:** Upload multiple images in a single ZIP archive.
-* **Automatic annotation:** Detect road damage using a trained YOLOv8 model.
-* **YOLO-format labels:** Generate annotation files containing class IDs and normalized bounding-box coordinates.
-* **Lightweight downloads:** Download the generated label files without including the original images.
-* **Multiple damage classes:** Detect four road-damage categories: D00, D10, D20, and D40.
-* **REST API:** Access the annotation functionality through a FastAPI backend.
-* **Containerized deployment:** Run the application using Docker and Docker Compose.
+- **Batch image processing:** Upload multiple road images in a single ZIP archive.
+- **Automatic annotation:** Detect road damage using a trained YOLOv8 model.
+- **YOLO-format labels:** Generate label files containing class IDs and normalized bounding-box coordinates.
+- **Lightweight downloads:** Download generated label files without including the original images.
+- **Four damage classes:** Detect D00, D10, D20, and D40.
+- **REST API:** Access annotation and prediction functionality through FastAPI.
+- **API-key authentication:** Protect supported endpoints using API keys.
+- **Database integration:** Use PostgreSQL and SQLAlchemy for database operations.
+- **Containerized deployment:** Run the application using Docker and Docker Compose.
+- **ONNX Runtime inference:** Use the exported ONNX model for CPU-based inference.
 
 ## How It Works
 
 1. **Upload:** Submit a ZIP archive containing road images.
-2. **Inference:** The trained YOLOv8 model processes the images and detects road damage.
-3. **Annotation generation:** Convert the detections into YOLO-format label files.
-4. **Download:** Receive a ZIP archive containing the generated annotations, ready for use in a compatible object-detection dataset.
+2. **Inference:** The application processes the images using the trained road-damage detection model.
+3. **Annotation generation:** Convert detections into YOLO-format label files.
+4. **Download:** Receive a ZIP archive containing the generated labels, ready for use in a compatible object-detection dataset.
 
 ## Technology Stack
 
-* **Backend:** Python, FastAPI
-* **Object detection:** YOLOv8
-* **Model deployment:** ONNX Runtime where configured
-* **Database:** PostgreSQL, SQLAlchemy
-* **Database migrations:** Alembic
-* **Containerization:** Docker, Docker Compose
-* **Testing:** Pytest
+- **Language:** Python
+- **Backend:** FastAPI
+- **Object detection:** YOLOv8
+- **Model inference:** ONNX Runtime
+- **Image processing:** Pillow, NumPy
+- **Database:** PostgreSQL, SQLAlchemy
+- **Database migrations:** Alembic
+- **Containerization:** Docker, Docker Compose
+- **Testing:** Pytest
 
 ## Supported Classes
 
-| Class ID | Label                    |
-| -------- | ------------------------ |
-| 0        | D00 — Longitudinal crack |
-| 1        | D10 — Transverse crack   |
-| 2        | D20 — Alligator crack    |
-| 3        | D40 — Pothole            |
+| Class ID | Label |
+|---:|---|
+| 0 | D00 — Longitudinal crack |
+| 1 | D10 — Transverse crack |
+| 2 | D20 — Alligator crack |
+| 3 | D40 — Pothole |
 
-The class IDs must match the class ordering configured in the trained model and used by the generated dataset labels.
+The class IDs must match the class ordering used by the trained model. Incorrect class mappings can produce invalid annotations.
 
 ## Requirements
 
-* Docker
-* Docker Compose
+To run the application using Docker:
 
-If you want to run or develop the application outside Docker, you will also need a compatible Python environment and the required dependencies.
+- Docker
+- Docker Compose
+
+For local development and testing, you will also need a compatible Python environment and the dependencies listed in `requirements.txt`.
 
 ## Getting Started
 
@@ -65,6 +69,12 @@ git clone https://github.com/FR-Rithik/road-damage-api.git
 cd road-damage-api
 ```
 
+The current development branch is `deployment/onnx-runtime`. To check it out explicitly:
+
+```bash
+git switch deployment/onnx-runtime
+```
+
 ### 2. Configure environment variables
 
 Create your local environment file:
@@ -73,33 +83,41 @@ Create your local environment file:
 cp .env.example .env
 ```
 
-Configure the required database credentials, API settings, and model path according to your environment.
+Configure the database connection, API settings, authentication secrets, and model path as required by the application.
+
+For the ONNX Runtime configuration, use:
+
+```env
+MODEL_PATH=best.onnx
+```
+
+Use a strong, private value for `ADMIN_API_KEY` if required by your configuration. Never commit your `.env` file or production secrets.
+
+> On Windows PowerShell, if `cp` is unavailable in your environment, use `Copy-Item .env.example .env`.
 
 ### 3. Start the application
+
+Build the Docker image and start the services:
 
 ```bash
 docker compose up --build
 ```
 
-### 4. Run database migrations
+The API container is configured to run database migrations during startup, so a separate migration command is normally unnecessary.
 
-```bash
-docker compose exec api alembic upgrade head
-```
+### 4. Access the API
 
-### 5. Access the API
+When running locally with the default Docker Compose port mapping:
 
-Once the application starts, visit:
+- **Interactive API documentation:** http://localhost:8000/docs
+- **Alternative API documentation:** http://localhost:8000/redoc
+- **Health check:** http://localhost:8000/health
 
-* **API documentation:** http://localhost:8000/docs
-* **Alternative API documentation:** http://localhost:8000/redoc
-* **Health check:** http://localhost:8000/health
-
-The availability of these endpoints depends on the application configuration.
+The health endpoint can help verify the availability of the application's dependencies, including the database and model.
 
 ## API Usage
 
-The application exposes REST endpoints through FastAPI. The exact request fields and response schemas are available in the interactive API documentation at `/docs`.
+The application exposes its endpoints through FastAPI. Consult `/docs` for the current routes, required parameters, authentication requirements, upload limits, and response schemas.
 
 ### Authentication
 
@@ -109,26 +127,25 @@ Protected endpoints use an API key supplied through the `X-API-Key` HTTP header.
 X-API-Key: your-api-key-here
 ```
 
-Use a valid API key configured for your deployment.
+Replace the example value with a valid API key for your environment. Do not expose real API keys in public repositories, screenshots, or logs.
 
-### Main Annotation Workflow
+### Batch Dataset Annotation
 
-Submit a ZIP archive containing images to the batch annotation endpoint configured by the application.
+The main workflow accepts a ZIP archive containing images.
 
-The expected workflow is:
+1. Submit the archive to the dataset-annotation endpoint.
+2. The application extracts and processes the supported images.
+3. The model generates road-damage detections.
+4. The application converts detections into YOLO-format label files.
+5. Download the resulting ZIP archive containing the generated labels.
 
-* Upload an image archive.
-* Run automatic road-damage detection.
-* Generate YOLO-format label files.
-* Download the archive containing the generated labels.
-
-Refer to `/docs` for the current batch-upload endpoint, accepted file format, request limits, and response details.
+The output is intended to keep downloads lightweight by excluding the original images. Refer to `/docs` for the exact endpoint path, upload field name, accepted archive contents, and request limits.
 
 ### Individual Image Detection
 
-The existing API also supports individual-image detection through the `/predict` endpoint.
+The application also retains individual-image prediction functionality through the `/predict` endpoint.
 
-Example using the existing image-prediction endpoint:
+Example:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -136,36 +153,46 @@ curl -X POST http://localhost:8000/predict \
   -F "file=@road.jpg"
 ```
 
-Check the API documentation for the exact response schema and any deployment-specific requirements.
+Replace the API key and image path with valid values. Consult `/docs` for the exact response format and authentication configuration.
 
 ## Model Configuration
 
-The application uses a trained road-damage detection model to generate annotations.
+The current deployment branch uses an exported ONNX model for CPU-based inference through ONNX Runtime.
 
-Depending on the deployment configuration, the model may be loaded from a PyTorch checkpoint (`.pt`) or an exported ONNX model (`.onnx`).
+Configure the model path using `MODEL_PATH`:
 
-Configure the model path using the environment variable supported by the application. The original PyTorch configuration uses `MODEL_PATH`; verify the active configuration when deploying the ONNX version.
+```env
+MODEL_PATH=best.onnx
+```
 
-The model is intended to detect these four classes:
+The repository contains the trained model artifacts. The ONNX model is used by the inference service in this deployment configuration; the original `.pt` checkpoint is retained as a model artifact but is not required for ONNX-only inference.
 
-* D00
-* D10
-* D20
-* D40
+Using ONNX Runtime is intended to reduce deployment resource requirements. Actual memory consumption depends on the model, dependencies, application configuration, and workload, so it should be measured in the target deployment environment.
 
-The generated annotations depend on the model's predictions, confidence thresholds, class mapping, and inference configuration. Automatically generated labels should be reviewed before being treated as ground truth.
+The model generates predictions for four classes:
+
+- D00 — Longitudinal crack
+- D10 — Transverse crack
+- D20 — Alligator crack
+- D40 — Pothole
+
+Generated annotations depend on the model's predictions, confidence threshold, preprocessing, and class mapping. **Review automatically generated labels before treating them as ground truth.**
 
 ## Running Tests
 
-Run the test suite inside the running API container:
+Run tests from your local development environment with the required dependencies installed.
 
 ```bash
-docker compose exec api pytest -q
+pytest -q
 ```
+
+To run the application tests inside a local Python virtual environment, activate that environment first and install the project's development dependencies.
+
+The Docker image is intended for running the application; the test suite is not included in the image.
 
 ## Project Structure
 
-The following is the known structure of the original backend. The batch-annotation implementation may introduce additional files or modules.
+The repository includes the FastAPI application, API routers, database migrations, model artifacts, Docker configuration, and tests. The main directories are:
 
 ```text
 app/
@@ -176,37 +203,46 @@ app/
 ├── auth.py
 ├── errors.py
 ├── logger.py
+├── model_service.py
+├── dataset_service.py
 └── routers/
-    └── auth.py
+    ├── auth.py
+    ├── predict.py
+    └── datasets.py
 
+alembic/
 tests/
-└── test_auth.py
 
 Dockerfile
 docker-compose.yml
-alembic/
+requirements.txt
 pyproject.toml
+.env.example
+best.onnx
 ```
+
+This is a high-level overview; consult the repository for the complete file structure.
 
 ## Project Evolution
 
-This project was initially developed as a road-damage detection API. It is now being extended into **Annotation Wizard**, with a focus on automating the creation of object-detection datasets.
+Annotation Wizard began as **Road Damage API**, a backend for detecting road damage in individual images. It has since evolved toward batch dataset annotation.
 
-The existing road-damage detection model serves as the inference engine, while the batch-processing workflow makes it possible to generate annotations for multiple images at once.
+The trained road-damage model remains the inference engine, while the ZIP-based workflow enables users to generate annotations for multiple images in a single request. The ONNX Runtime deployment configuration is intended to make the application more practical to host in resource-constrained environments.
 
 ## Future Improvements
 
 Potential improvements include:
 
-* A web interface for uploading archives and downloading annotations.
-* Annotation previews with bounding boxes and confidence scores.
-* Configurable confidence thresholds.
-* Support for additional object-detection models and datasets.
-* Progress reporting for large annotation jobs.
-* Additional export formats and dataset-validation tools.
+- A web interface for uploading archives and downloading annotations.
+- Annotation previews with bounding boxes and confidence scores.
+- Configurable confidence thresholds.
+- Progress reporting for large annotation jobs.
+- Support for additional object-detection models and datasets.
+- Additional export formats and dataset-validation tools.
+- More comprehensive validation of generated labels.
 
 ---
 
-**Repository:** (https://github.com/FR-Rithik/annotation-wizard/tree/deployment/onnx-runtime)
+**Repository:** https://github.com/FR-Rithik/annotation-wizard/tree/deployment/onnx-runtime
 
 **Project:** Annotation Wizard — Automated Road Damage Dataset Annotation

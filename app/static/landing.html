@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#123f39" />
+  <meta name="description"
+    content="Annotation Wizard uses a YOLO-based deep-learning model to detect road damage and generate YOLO-format annotations. Upload a ZIP of road images, process the dataset, and download the generated label files." />
+  <title>Annotation Wizard | Automated Road Damage Dataset Annotation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/landing.css" />
+</head>
+
+<body>
+  <!-- ─── HEADER / NAVIGATION ─── -->
+  <header class="landing-header">
+    <div class="landing-nav-container">
+      <a class="brand" href="/" aria-label="Annotation Wizard home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="1" y="1" width="26" height="26" rx="4" stroke="url(#brandGradLanding)" stroke-width="2" />
+            <path d="M8 18L14 8L20 18" stroke="url(#brandGradLanding)" stroke-width="2.2" stroke-linecap="round"
+              stroke-linejoin="round" fill="none" />
+            <circle cx="14" cy="20" r="1.5" fill="#f59e0b" />
+            <defs>
+              <linearGradient id="brandGradLanding" x1="0" y1="0" x2="28" y2="28">
+                <stop stop-color="#818cf8" />
+                <stop offset="1" stop-color="#f59e0b" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </span>
+        <span class="brand-text">Annotation Wizard</span>
+      </a>
+
+      <div class="nav-links">
+        <span class="demo-live-badge" title="Live demo backend is operational">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>Live Demo</span>
+        </span>
+        <a class="nav-link" href="#classes">Damage Classes</a>
+        <a class="nav-link" href="#workflow">Workflow</a>
+        <a class="nav-link" href="#request-access">Request Access</a>
+        <a class="nav-link-btn" href="#login-panel">Launch Workspace</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <!-- ─── HERO SECTION ─── -->
+    <section class="hero-section" aria-labelledby="hero-title">
+      <div class="hero-container">
+        <div class="hero-badge">Automated Road Damage Annotation</div>
+        <h1 id="hero-title" class="hero-heading">Turn road images into labeled datasets.</h1>
+        <p class="hero-description">
+          Annotation Wizard uses a YOLO-based deep-learning model to detect road damage and
+          generate YOLO-format annotations. Upload a ZIP of road images, process the dataset,
+          and download the generated label files.
+        </p>
+
+        <div class="tech-stack-row" aria-label="Technology stack">
+          <span class="tech-pill">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 1l6 3.5v7L8 15l-6-3.5v-7L8 1z" />
+            </svg>
+            FastAPI
+          </span>
+          <span class="tech-pill">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" />
+            </svg>
+            YOLO
+          </span>
+          <span class="tech-pill">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="3" y="3" width="10" height="10" rx="2" />
+            </svg>
+            ONNX Runtime
+          </span>
+          <span class="tech-pill">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M3 4h10M3 8h10M3 12h6" />
+            </svg>
+            Automated Dataset Annotation
+          </span>
+        </div>
+
+        <div class="hero-actions">
+          <a class="primary-hero-btn" href="#login-panel">Try Demo Access</a>
+          <a class="secondary-hero-btn" href="#request-access">Request API Key</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── API KEY LOGIN PANEL ─── -->
+    <section class="login-panel-section" id="login-panel" aria-labelledby="login-title">
+      <div class="login-card">
+        <div class="login-card-header">
+          <div class="login-badge">Demo &amp; Client Access</div>
+          <h2 id="login-title">Access the Workspace</h2>
+          <p class="login-subtitle">
+            Enter this demo key or to launch the interactive workspace:
+            12e37c15be57465c689e231a4fa4152363d8aa2d0610ce73861bd4364fdad177
+          </p>
+        </div>
+
+        <form class="login-form" id="api-key-form" novalidate>
+          <div class="form-field">
+            <label class="field-label" for="landing-api-key">X-API-Key</label>
+            <div class="input-password-wrapper">
+              <input id="landing-api-key" type="password" autocomplete="off"
+                placeholder="Paste your demo or client API key" required aria-describedby="login-message" />
+              <button type="button" id="toggle-key-visibility" class="toggle-visibility-btn" aria-label="Show API key"
+                title="Show or hide API key">
+                <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button class="verify-button" id="verify-key-btn" type="submit">
+            <span class="btn-spinner hidden" id="login-spinner" aria-hidden="true"></span>
+            <span id="btn-text">Verify key and continue</span>
+          </button>
+
+          <div class="login-message-box hidden" id="login-message" role="status" aria-live="polite"></div>
+
+          <div class="login-footer-hint">
+            <span>Don't have an API key?</span>
+            <a href="#request-access">Request demo access below</a>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ─── SUPPORTED ROAD DAMAGE CLASSES ─── -->
+    <section class="classes-section" id="classes" aria-labelledby="classes-title">
+      <div class="section-container">
+        <div class="section-eyebrow">Damage Taxonomy</div>
+        <h2 id="classes-title" class="section-heading-dark">Supported Road Damage Classes</h2>
+        <p class="section-subtext">
+          The trained model detects four standardized distress categories commonly analyzed in road maintenance and
+          pavement assessments:
+        </p>
+
+        <div class="class-cards-grid">
+          <article class="damage-card card-d00">
+            <div class="card-top">
+              <span class="class-badge badge-d00">D00</span>
+              <span class="damage-type-name">Longitudinal Cracks</span>
+            </div>
+            <h3 class="damage-card-title">D00 / Longitudinal Cracks</h3>
+            <p class="damage-card-desc">
+              Cracks running along the wheel mark or construction joints.
+            </p>
+          </article>
+
+          <article class="damage-card card-d10">
+            <div class="card-top">
+              <span class="class-badge badge-d10">D10</span>
+              <span class="damage-type-name">Transverse Cracks</span>
+            </div>
+            <h3 class="damage-card-title">D10 / Transverse Cracks</h3>
+            <p class="damage-card-desc">
+              Lateral/perpendicular cracks across the lane or joints.
+            </p>
+          </article>
+
+          <article class="damage-card card-d20">
+            <div class="card-top">
+              <span class="class-badge badge-d20">D20</span>
+              <span class="damage-type-name">Alligator Cracks</span>
+            </div>
+            <h3 class="damage-card-title">D20 / Alligator Cracks</h3>
+            <p class="damage-card-desc">
+              Interconnected fatigue-related network cracks.
+            </p>
+          </article>
+
+          <article class="damage-card card-d40">
+            <div class="card-top">
+              <span class="class-badge badge-d40">D40</span>
+              <span class="damage-type-name">Potholes</span>
+            </div>
+            <h3 class="damage-card-title">D40 / Potholes</h3>
+            <p class="damage-card-desc">
+              Visible holes or cavities in the road surface.
+            </p>
+          </article>
+        </div>
+
+        <div class="model-accuracy-note">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"
+            aria-hidden="true">
+            <circle cx="10" cy="10" r="9" />
+            <path d="M10 6v5M10 14v.5" stroke-linecap="round" />
+          </svg>
+          <p>
+            <strong>Class Scope &amp; Review Notice:</strong>
+            The current model's D40 class is a pothole class and does not independently detect ruts or bumps.
+            Model predictions depend on confidence thresholds and preprocessing; automatically generated labels should
+            be reviewed by an annotator before use in training pipelines.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── WORKFLOW SECTION ─── -->
+    <section class="workflow-section" id="workflow" aria-labelledby="workflow-title">
+      <div class="section-container">
+        <div class="section-eyebrow">Architecture &amp; Pipeline</div>
+        <h2 id="workflow-title" class="section-heading-dark">How Annotation Wizard Works</h2>
+        <p class="section-subtext">
+          From raw road imagery to clean YOLO bounding boxes in seconds.
+        </p>
+
+        <div class="workflow-steps-grid">
+          <div class="workflow-step-card">
+            <div class="step-badge">1</div>
+            <h3>Upload Dataset ZIP</h3>
+            <p>Upload a ZIP archive containing road images (JPG, PNG, or WebP). The service enforces archive safety
+              limits (up to 50 MB, 100 images).</p>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="step-badge">2</div>
+            <h3>CPU Inference</h3>
+            <p>The YOLO model runs inference using ONNX Runtime on CPU, minimizing hosting memory footprints while
+              delivering consistent detection quality.</p>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="step-badge">3</div>
+            <h3>YOLO Label Generation</h3>
+            <p>Bounding boxes are normalized into standard YOLO format with per-image <code>.txt</code> files, class
+              indices, and metadata.</p>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="step-badge">4</div>
+            <h3>Download Labels Only</h3>
+            <p>The backend bundles generated annotations, <code>classes.txt</code>, and <code>data.yaml</code> into a
+              lightweight download archive.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── REQUEST API ACCESS FORM ─── -->
+    <section class="access-request-section" id="request-access" aria-labelledby="request-title">
+      <div class="request-container">
+        <div class="request-header">
+          <div class="login-badge">Developer Access</div>
+          <h2 id="request-title">Request API Access</h2>
+          <p class="request-subtitle">
+            Need access for evaluating Annotation Wizard or integrating road damage labeling into your workflow?
+            Submit your details below. Each request is stored for the project owner to review.
+          </p>
+        </div>
+
+        <form class="request-form" id="access-form" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="field-label" for="req-name">Full name <span class="req-star">*</span></label>
+              <input id="req-name" type="text" name="name" maxlength="100" required placeholder="e.g. Jane Doe" />
+              <span class="field-error" id="err-name"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label" for="req-email">Work or personal email <span class="req-star">*</span></label>
+              <input id="req-email" type="email" name="email" maxlength="255" required
+                placeholder="name@organization.com" />
+              <span class="field-error" id="err-email"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="req-org">Organization <span class="optional-label">(optional)</span></label>
+            <input id="req-org" type="text" name="organization" maxlength="100"
+              placeholder="e.g. Acme Infrastructure / Independent Researcher" />
+            <span class="field-error" id="err-org"></span>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="req-use">Intended use <span class="req-star">*</span></label>
+            <textarea id="req-use" name="intended_use" rows="4" minlength="5" maxlength="1000" required
+              placeholder="Briefly describe how you plan to use Annotation Wizard (e.g. recruiter portfolio review, municipal road inspection prototype, ML dataset enrichment)..."></textarea>
+            <div class="char-counter"><span id="use-char-count">0</span> / 1000 characters</div>
+            <span class="field-error" id="err-use"></span>
+          </div>
+
+          <div class="form-disclaimer">
+            <p>
+              <strong>Privacy &amp; Policy:</strong> Submitting this form securely records your request in our database
+              for review.
+              API keys are not issued automatically upon submission.
+            </p>
+          </div>
+
+          <button class="verify-button" id="submit-request-btn" type="submit">
+            <span class="btn-spinner hidden" id="request-spinner" aria-hidden="true"></span>
+            <span id="request-btn-text">Submit Access Request</span>
+          </button>
+
+          <div class="request-feedback hidden" id="request-feedback" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- ─── FOOTER ─── -->
+  <footer class="landing-footer">
+    <div class="footer-container">
+      <div class="footer-brand-col">
+        <div class="brand">
+          <span class="brand-text">Annotation Wizard</span>
+        </div>
+        <p class="footer-tagline">Automated Road Damage Dataset Annotation using YOLO &amp; ONNX Runtime.</p>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Navigation</h4>
+        <a href="/workspace">Workspace</a>
+        <a href="#classes">Damage Classes</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#request-access">Request Access</a>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Developer Resources</h4>
+        <a href="/docs" target="_blank" rel="noopener">Interactive API Docs</a>
+        <a href="/health" target="_blank" rel="noopener">Health Check</a>
+        <a href="/sample-dataset" download="sample-road-dataset.zip">Sample Dataset ZIP</a>
+        <a href="https://github.com/FR-Rithik/annotation-wizard" target="_blank" rel="noopener">GitHub Repository</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; Annotation Wizard. Road damage inspection and dataset labeling intelligence.</p>
+    </div>
+  </footer>
+
+  <script src="/static/landing.js" defer></script>
+</body>
+
+</html>

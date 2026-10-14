@@ -30,7 +30,35 @@ def test_health_when_model_is_unavailable(client, monkeypatch):
 def test_frontend_is_served(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Annotation izard" in response.text
+    assert "Annotation Wizard" in response.text
+    assert "Turn road images into labeled datasets." in response.text
+    assert "D00 / Longitudinal Cracks" in response.text
+    assert "D10 / Transverse Cracks" in response.text
+    assert "D20 / Alligator Cracks" in response.text
+    assert "D40 / Potholes" in response.text
+
+
+def test_workspace_is_served(client):
+    response = client.get("/workspace")
+    assert response.status_code == 200
+    assert "Annotation Wizard" in response.text
+    assert "Try the sample dataset" in response.text
+    assert "Dataset labeling" in response.text
+
+
+def test_sample_dataset_is_served(client):
+    import io
+    import zipfile
+
+    response = client.get("/sample-dataset")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    # Verify it is a valid zip archive
+    archive = zipfile.ZipFile(io.BytesIO(response.content))
+    filenames = archive.namelist()
+    assert len(filenames) >= 1
+    assert any(fn.lower().endswith((".png", ".jpg", ".jpeg", ".webp")) for fn in filenames)
+
 
 
 def test_database_errors_return_a_service_unavailable_response(client):

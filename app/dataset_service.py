@@ -5,13 +5,19 @@ import json
 import shutil
 import stat
 import tempfile
+import uuid
 import zipfile
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
+
+from PIL import Image as PILImage
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.logger import get_logger
 from app.model_service import get_model, predict_image
+from app.models import Annotation, DatasetImage, DatasetJob
 
 logger = get_logger(__name__)
 
@@ -574,3 +580,583 @@ def cleanup_working_directory(path: Path) -> None:
         path,
         ignore_errors=True,
     )
+
+
+# ─── Dataset Job & Human-in-the-Loop Annotation Service ─────────────
+
+CLASS_DESCRIPTIONS = {
+    "D00": "Longitudinal Crack",
+    "D10": "Transverse Crack",
+    "D20": "Alligator Crack",
+    "D40": "Pothole",
+}
+
+CLASS_IDS = {
+    "D00": 0,
+    "D10": 1,
+    "D20": 2,
+    "D40": 3,
+}
+
+ID_TO_CLASS = {v: k for k, v in CLASS_IDS.items()}
+
+
+def create_dataset_job(
+    db: Session,
+    client_id: int | None,
+    job_name: str,
+    files_data: list[tuple[str, bytes]],
+) -> DatasetJob:
+    """
+    Create a dataset job from an uploaded ZIP archive or individual image files.
+    Runs YOLO ONNX prediction on each image and persists initial bounding boxes.
+    """
+    if not files_data:
+        raise ValueError("No files provided for dataset job.")
+
+    job_id = uuid.uuid4().hex[:12]
+    clean_name = Path(job_name).stem if job_name.lower().endswith(".zip") else (job_name or f"dataset_{job_id}")
+
+    storage_root = (Path(settings.dataset_storage_dir) / job_id).resolve()
+    images_dir = storage_root / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    extracted_images: list[tuple[str, bytes]] = []
+
+    # Check if single uploaded file is a ZIP archive
+    if len(files_data) == 1 and files_data[0][0].lower().endswith(".zip"):
+        zip_filename, zip_bytes = files_data[0]
+        if len(zip_bytes) > settings.max_dataset_zip_bytes:
+            raise ValueError(
+                f"Dataset ZIP is too large. Maximum size is "
+                f"{settings.max_dataset_zip_bytes // (1024 * 1024)} MB"
+            )
+
+        try:
+            archive = zipfile.ZipFile(io.BytesIO(zip_bytes), "r")
+        except zipfile.BadZipFile as exc:
+            raise ValueError("Uploaded file is not a valid ZIP archive") from exc
+
+        with archive:
+            infos = archive.infolist()
+            if not infos:
+                raise ValueError("The ZIP archive is empty")
+
+            seen_names: set[str] = set()
+            total_uncompressed = 0
+
+            for info in infos:
+                if info.is_dir() or _is_symlink(info):
+                    continue
+
+                safe_path = _validate_member_path(info.filename)
+                ext = safe_path.suffix.lower()
+                if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                    continue
+
+                if info.file_size > settings.max_dataset_image_bytes:
+                    raise ValueError(
+                        f"Image '{info.filename}' exceeds {settings.max_dataset_image_bytes // (1024 * 1024)} MB limit"
+                    )
+
+                total_uncompressed += info.file_size
+                if total_uncompressed > settings.max_dataset_uncompressed_bytes:
+                    raise ValueError("The uncompressed dataset is too large.")
+
+                img_name = safe_path.name
+                # Avoid collision if multiple folders have same filename
+                counter = 1
+                base_stem = safe_path.stem
+                while img_name.lower() in seen_names:
+                    img_name = f"{base_stem}_{counter}{ext}"
+                    counter += 1
+                seen_names.add(img_name.lower())
+
+                with archive.open(info, "r") as src:
+                    content = src.read()
+                    extracted_images.append((img_name, content))
+
+                if len(extracted_images) > settings.max_dataset_images:
+                    raise ValueError(f"Dataset exceeds limit of {settings.max_dataset_images} images.")
+    else:
+        # Multiple or single image files
+        seen_names: set[str] = set()
+        for filename, content in files_data:
+            ext = Path(filename).suffix.lower()
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                continue
+
+            if len(content) > settings.max_dataset_image_bytes:
+                raise ValueError(
+                    f"Image '{filename}' exceeds {settings.max_dataset_image_bytes // (1024 * 1024)} MB limit"
+                )
+
+            img_name = Path(filename).name
+            counter = 1
+            base_stem = Path(filename).stem
+            while img_name.lower() in seen_names:
+                img_name = f"{base_stem}_{counter}{ext}"
+                counter += 1
+            seen_names.add(img_name.lower())
+            extracted_images.append((img_name, content))
+
+    if not extracted_images:
+        raise ValueError("No supported images found (JPG, PNG, or WebP).")
+
+    # Sort images naturally by filename
+    extracted_images.sort(key=lambda item: item[0])
+
+    job = DatasetJob(
+        id=job_id,
+        name=clean_name,
+        client_id=client_id,
+        status="processing",
+        total_images=len(extracted_images),
+        reviewed_images=0,
+        total_annotations=0,
+        storage_dir=str(storage_root),
+    )
+    db.add(job)
+    db.commit()
+
+    total_annotations_count = 0
+    saved_images_count = 0
+
+    for index, (img_name, img_bytes) in enumerate(extracted_images):
+        dest_path = images_dir / img_name
+        dest_path.write_bytes(img_bytes)
+
+        # Get dimensions
+        try:
+            with PILImage.open(io.BytesIO(img_bytes)) as pil_img:
+                width, height = pil_img.size
+        except Exception:
+            width, height = 640, 640
+
+        # Run YOLO ONNX inference
+        try:
+            prediction = predict_image(img_bytes, img_name)
+            detections = prediction.get("detections", [])
+        except Exception as exc:
+            logger.warning("Prediction failed for image %s: %s", img_name, exc)
+            detections = []
+
+        rel_path = f"images/{img_name}"
+        dataset_image = DatasetImage(
+            job_id=job.id,
+            filename=img_name,
+            relative_path=rel_path,
+            width=width,
+            height=height,
+            status="not_reviewed",
+            order_index=index,
+        )
+        db.add(dataset_image)
+        db.flush()
+
+        for det in detections:
+            try:
+                x1, y1, x2, y2 = (float(v) for v in det["bbox"])
+                class_id = int(det["class_id"])
+                class_name = str(det.get("class_name", ID_TO_CLASS.get(class_id, "D00")))
+                conf = float(det.get("confidence", 0.0))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            # Clamp coordinates
+            x1 = max(0.0, min(x1, float(width)))
+            y1 = max(0.0, min(y1, float(height)))
+            x2 = max(0.0, min(x2, float(width)))
+            y2 = max(0.0, min(y2, float(height)))
+
+            if x2 <= x1 or y2 <= y1:
+                continue
+
+            annotation = Annotation(
+                image_id=dataset_image.id,
+                class_id=class_id,
+                class_name=class_name,
+                x_min=round(x1, 2),
+                y_min=round(y1, 2),
+                x_max=round(x2, 2),
+                y_max=round(y2, 2),
+                confidence=round(conf, 4),
+                is_prediction=True,
+                is_modified=False,
+            )
+            db.add(annotation)
+            total_annotations_count += 1
+
+        saved_images_count += 1
+
+    job.total_images = saved_images_count
+    job.total_annotations = total_annotations_count
+    job.status = "ready_for_review"
+    db.commit()
+    db.refresh(job)
+
+    logger.info(
+        "Dataset job created: id=%s name=%s images=%d annotations=%d",
+        job.id,
+        job.name,
+        job.total_images,
+        job.total_annotations,
+    )
+    return job
+
+
+def list_dataset_jobs(db: Session, client_id: int | None = None) -> list[dict[str, Any]]:
+    """List recent dataset jobs."""
+    query = db.query(DatasetJob)
+    if client_id is not None:
+        query = query.filter(DatasetJob.client_id == client_id)
+    jobs = query.order_by(DatasetJob.created_at.desc()).limit(50).all()
+
+    results = []
+    for job in jobs:
+        results.append({
+            "id": job.id,
+            "name": job.name,
+            "status": job.status,
+            "total_images": job.total_images,
+            "reviewed_images": job.reviewed_images,
+            "total_annotations": job.total_annotations,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        })
+    return results
+
+
+def get_dataset_job_dict(db: Session, job_id: str) -> dict[str, Any] | None:
+    """Retrieve full job details including image listing and review progress."""
+    job = db.query(DatasetJob).filter(DatasetJob.id == job_id).first()
+    if not job:
+        return None
+
+    images_data = []
+    reviewed_count = 0
+    total_annotations = 0
+
+    for img in job.images:
+        if img.status == "reviewed":
+            reviewed_count += 1
+        ann_count = len(img.annotations)
+        total_annotations += ann_count
+
+        images_data.append({
+            "id": img.id,
+            "filename": img.filename,
+            "status": img.status,
+            "width": img.width,
+            "height": img.height,
+            "order_index": img.order_index,
+            "annotation_count": ann_count,
+            "image_url": f"/datasets/jobs/{job.id}/images/{img.id}/file",
+        })
+
+    # Keep counts consistent
+    job.reviewed_images = reviewed_count
+    job.total_annotations = total_annotations
+    db.commit()
+
+    return {
+        "id": job.id,
+        "name": job.name,
+        "status": job.status,
+        "total_images": job.total_images,
+        "reviewed_images": reviewed_count,
+        "total_annotations": total_annotations,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "images": images_data,
+    }
+
+
+def get_dataset_image_dict(db: Session, job_id: str, image_id: int) -> dict[str, Any] | None:
+    """Get image details and its current annotations for canvas editing."""
+    img = (
+        db.query(DatasetImage)
+        .filter(DatasetImage.id == image_id, DatasetImage.job_id == job_id)
+        .first()
+    )
+    if not img:
+        return None
+
+    annotations_data = []
+    for ann in img.annotations:
+        annotations_data.append({
+            "id": ann.id,
+            "class_id": ann.class_id,
+            "class_name": ann.class_name,
+            "class_label": CLASS_DESCRIPTIONS.get(ann.class_name, ann.class_name),
+            "x_min": round(ann.x_min, 2),
+            "y_min": round(ann.y_min, 2),
+            "x_max": round(ann.x_max, 2),
+            "y_max": round(ann.y_max, 2),
+            "confidence": ann.confidence,
+            "is_prediction": ann.is_prediction,
+            "is_modified": ann.is_modified,
+        })
+
+    return {
+        "id": img.id,
+        "job_id": img.job_id,
+        "filename": img.filename,
+        "status": img.status,
+        "width": img.width,
+        "height": img.height,
+        "order_index": img.order_index,
+        "image_url": f"/datasets/jobs/{img.job_id}/images/{img.id}/file",
+        "annotations": annotations_data,
+    }
+
+
+def save_dataset_image_annotations(
+    db: Session,
+    job_id: str,
+    image_id: int,
+    status: str,
+    annotations_payload: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """
+    Persist human-in-the-loop edits for a single image:
+    Updates, adds, or removes bounding boxes, updates status, and recalculates job progress.
+    """
+    img = (
+        db.query(DatasetImage)
+        .filter(DatasetImage.id == image_id, DatasetImage.job_id == job_id)
+        .first()
+    )
+    if not img:
+        return None
+
+    # Replace existing annotations with corrected set
+    db.query(Annotation).filter(Annotation.image_id == image_id).delete()
+
+    for item in annotations_payload:
+        try:
+            x1 = float(item["x_min"])
+            y1 = float(item["y_min"])
+            x2 = float(item["x_max"])
+            y2 = float(item["y_max"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        # Sort coordinates if inverted
+        if x1 > x2:
+            x1, x2 = x2, x1
+        if y1 > y2:
+            y1, y2 = y2, y1
+
+        # Clamp to image boundaries
+        w = float(img.width) if img.width > 0 else 640.0
+        h = float(img.height) if img.height > 0 else 640.0
+        x1 = max(0.0, min(x1, w))
+        y1 = max(0.0, min(y1, h))
+        x2 = max(0.0, min(x2, w))
+        y2 = max(0.0, min(y2, h))
+
+        # Enforce minimum box dimensions (at least 2 pixels)
+        if (x2 - x1) < 2.0 or (y2 - y1) < 2.0:
+            continue
+
+        raw_class_name = str(item.get("class_name", "D00")).upper()
+        if raw_class_name not in CLASS_IDS:
+            # Fallback by class_id
+            cid = int(item.get("class_id", 0))
+            raw_class_name = ID_TO_CLASS.get(cid, "D00")
+
+        class_id = CLASS_IDS[raw_class_name]
+        class_name = raw_class_name
+
+        conf = item.get("confidence")
+        conf_val = float(conf) if conf is not None else None
+        is_pred = bool(item.get("is_prediction", False))
+        is_mod = bool(item.get("is_modified", True))
+
+        ann = Annotation(
+            image_id=img.id,
+            class_id=class_id,
+            class_name=class_name,
+            x_min=round(x1, 2),
+            y_min=round(y1, 2),
+            x_max=round(x2, 2),
+            y_max=round(y2, 2),
+            confidence=conf_val,
+            is_prediction=is_pred,
+            is_modified=is_mod,
+        )
+        db.add(ann)
+
+    # Valid status values: "not_reviewed", "editing", "reviewed"
+    valid_statuses = {"not_reviewed", "editing", "reviewed"}
+    img.status = status if status in valid_statuses else "reviewed"
+
+    job = db.query(DatasetJob).filter(DatasetJob.id == job_id).first()
+    if job:
+        job.updated_at = datetime.utcnow()
+        job.reviewed_images = (
+            db.query(DatasetImage)
+            .filter(DatasetImage.job_id == job_id, DatasetImage.status == "reviewed")
+            .count()
+        )
+        job.total_annotations = (
+            db.query(Annotation)
+            .join(DatasetImage)
+            .filter(DatasetImage.job_id == job_id)
+            .count()
+        )
+
+    db.commit()
+    return get_dataset_image_dict(db, job_id, image_id)
+
+
+def update_dataset_image_status(
+    db: Session,
+    job_id: str,
+    image_id: int,
+    status: str,
+) -> dict[str, Any] | None:
+    """Quick update of image review status."""
+    img = (
+        db.query(DatasetImage)
+        .filter(DatasetImage.id == image_id, DatasetImage.job_id == job_id)
+        .first()
+    )
+    if not img:
+        return None
+
+    img.status = status if status in {"not_reviewed", "editing", "reviewed"} else "reviewed"
+    job = db.query(DatasetJob).filter(DatasetJob.id == job_id).first()
+    if job:
+        job.updated_at = datetime.utcnow()
+        job.reviewed_images = (
+            db.query(DatasetImage)
+            .filter(DatasetImage.job_id == job_id, DatasetImage.status == "reviewed")
+            .count()
+        )
+    db.commit()
+    return {"id": img.id, "status": img.status}
+
+
+def export_dataset_job_yolo(db: Session, job_id: str) -> tuple[Path, dict[str, Any]]:
+    """
+    Generate downloadable ZIP containing final human-corrected YOLO label files:
+    - labels/<image_name>.txt
+    - classes.txt
+    - data.yaml
+    - dataset_info.txt
+    """
+    job = db.query(DatasetJob).filter(DatasetJob.id == job_id).first()
+    if not job:
+        raise ValueError(f"Dataset job '{job_id}' not found.")
+
+    storage_root = Path(job.storage_dir)
+    export_root = storage_root / "export_yolo"
+    labels_root = export_root / "labels"
+
+    # Reset clean export folder
+    shutil.rmtree(export_root, ignore_errors=True)
+    labels_root.mkdir(parents=True, exist_ok=True)
+
+    class_names = {0: "D00", 1: "D10", 2: "D20", 3: "D40"}
+    total_images = len(job.images)
+    images_with_boxes = 0
+    total_boxes = 0
+    class_counts = {"D00": 0, "D10": 0, "D20": 0, "D40": 0}
+
+    for img in job.images:
+        label_lines: list[str] = []
+        w = float(img.width) if img.width > 0 else 640.0
+        h = float(img.height) if img.height > 0 else 640.0
+
+        for ann in img.annotations:
+            class_id = ann.class_id
+            cname = ann.class_name
+            if cname in class_counts:
+                class_counts[cname] += 1
+
+            x_center = ((ann.x_min + ann.x_max) / 2.0) / w
+            y_center = ((ann.y_min + ann.y_max) / 2.0) / h
+            box_w = (ann.x_max - ann.x_min) / w
+            box_h = (ann.y_max - ann.y_min) / h
+
+            # Clamp normalized coordinates to [0.0, 1.0]
+            x_center = max(0.0, min(1.0, x_center))
+            y_center = max(0.0, min(1.0, y_center))
+            box_w = max(0.0, min(1.0, box_w))
+            box_h = max(0.0, min(1.0, box_h))
+
+            label_lines.append(
+                f"{class_id} {x_center:.6f} {y_center:.6f} {box_w:.6f} {box_h:.6f}"
+            )
+
+        if label_lines:
+            images_with_boxes += 1
+            total_boxes += len(label_lines)
+
+        label_path = labels_root / f"{Path(img.filename).stem}.txt"
+        label_path.write_text(
+            "\n".join(label_lines) + ("\n" if label_lines else ""),
+            encoding="utf-8",
+        )
+
+    # Write classes.txt
+    classes_file = export_root / "classes.txt"
+    with classes_file.open("w", encoding="utf-8") as f:
+        for cid in sorted(class_names):
+            f.write(f"{class_names[cid]}\n")
+
+    # Write data.yaml
+    yaml_file = export_root / "data.yaml"
+    yaml_content = [
+        "# Generated by Annotation Wizard — Human-in-the-Loop Review",
+        "path: .",
+        "names:",
+    ]
+    for cid in sorted(class_names):
+        yaml_content.append(f"  {cid}: {json.dumps(class_names[cid])}")
+    yaml_file.write_text("\n".join(yaml_content) + "\n", encoding="utf-8")
+
+    # Write dataset_info.txt
+    info_file = export_root / "dataset_info.txt"
+    with info_file.open("w", encoding="utf-8") as f:
+        f.write("Annotation Wizard Labeled Dataset\n")
+        f.write("=================================\n\n")
+        f.write(f"Dataset Name: {job.name}\n")
+        f.write(f"Job ID: {job.id}\n")
+        f.write(f"Total images: {total_images}\n")
+        f.write(f"Reviewed images: {job.reviewed_images}\n")
+        f.write(f"Images with annotations: {images_with_boxes}\n")
+        f.write(f"Total annotations: {total_boxes}\n\n")
+        f.write("Class Breakdown:\n")
+        for cname, count in class_counts.items():
+            f.write(f"- {cname} ({CLASS_DESCRIPTIONS.get(cname, '')}): {count}\n")
+        f.write(f"\nExported at: {datetime.utcnow().isoformat()}Z\n")
+
+    output_zip = storage_root / f"{job.name}_yolo_labels.zip"
+    _create_output_zip(export_root, output_zip)
+
+    stats = {
+        "job_id": job.id,
+        "name": job.name,
+        "total_images": total_images,
+        "reviewed_images": job.reviewed_images,
+        "total_annotations": total_boxes,
+        "class_breakdown": class_counts,
+    }
+    return output_zip, stats
+
+
+def delete_dataset_job(db: Session, job_id: str) -> bool:
+    """Delete dataset job, annotations, and storage files."""
+    job = db.query(DatasetJob).filter(DatasetJob.id == job_id).first()
+    if not job:
+        return False
+
+    storage_root = Path(job.storage_dir)
+    shutil.rmtree(storage_root, ignore_errors=True)
+
+    db.delete(job)
+    db.commit()
+    return True
