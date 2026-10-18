@@ -19,7 +19,6 @@
   // ─── Canvas State ────────────────────────────────────────────────
   const state = {
     jobId: null,
-    apiKey: () => sessionStorage.getItem("aw-api-key") || "",
     images: [],          // [{id, filename, status, width, height, annotation_count, image_url}]
     currentIndex: -1,
     currentImageData: null,  // full data incl. annotations
@@ -62,13 +61,13 @@
   // Guard: only run if editor tab exists
   if (!canvas || !ctx) return;
 
-  // ─── Utility ─────────────────────────────────────────────────────
+  // ─── API Key Helper ──────────────────────────────────────────────
+  // Reads the API key stored by app.js in sessionStorage.
   function getApiKey() {
-    const stored = sessionStorage.getItem("aw-api-key") || "";
-    const inputEl = document.querySelector("#api-key");
-    return inputEl ? (inputEl.value.trim() || stored) : stored;
+    return sessionStorage.getItem("aw-api-key") || "";
   }
 
+  // ─── Utility ─────────────────────────────────────────────────────
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   function formatConf(v) {
@@ -884,8 +883,7 @@
 
   // ─── Dataset Job Creation (Upload) ───────────────────────────────
   async function uploadAndCreateJob(files) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
+    if (!getApiKey()) {
       alert("Please connect an API key first (sidebar → API session).");
       return;
     }
@@ -911,7 +909,7 @@
     try {
       const res = await fetch("/datasets/jobs", {
         method: "POST",
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": getApiKey() },
         body: formData,
       });
       if (!res.ok) {
@@ -929,8 +927,7 @@
   }
 
   async function loadSampleDataset() {
-    const apiKey = getApiKey();
-    if (!apiKey) {
+    if (!getApiKey()) {
       alert("Please connect an API key first.");
       return;
     }
@@ -956,7 +953,7 @@
 
       const res = await fetch("/datasets/jobs", {
         method: "POST",
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": getApiKey() },
         body: formData,
       });
       if (!res.ok) {
@@ -975,10 +972,9 @@
 
   // ─── Load Job by ID ───────────────────────────────────────────────
   async function loadJob(jobId) {
-    const apiKey = getApiKey();
     try {
       const res = await fetch(`/datasets/jobs/${jobId}`, {
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": getApiKey() },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -1016,7 +1012,6 @@
   // ─── Export YOLO Labels ──────────────────────────────────────────
   async function exportJob() {
     if (!state.jobId) return;
-    const apiKey = getApiKey();
 
     // Save current image first
     if (state.dirtyImages.size > 0) {
@@ -1025,7 +1020,7 @@
 
     try {
       const res = await fetch(`/datasets/jobs/${state.jobId}/export`, {
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": getApiKey() },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();

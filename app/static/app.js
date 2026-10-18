@@ -4,8 +4,6 @@
 
 // ─── 1. Element References ───
 const elements = {
-  apiKey: document.querySelector("#api-key"),
-  connect: document.querySelector("#connect-button"),
   connectionState: document.querySelector("#connection-state"),
   clientName: document.querySelector("#client-name"),
   healthDot: document.querySelector("#health-dot"),
@@ -54,7 +52,7 @@ const colors = ["#ef4444", "#f59e0b", "#3b82f6", "#14b8a6"];
 const classColors = { D00: colors[0], D10: colors[1], D20: colors[2], D40: colors[3] };
 
 const STORAGE_KEYS = {
-  apiKey: "aw-api-key",
+  currentApiKey: "aw-api-key",
   activity: "aw-activity-log",
   register: "aw-image-register",
 };
@@ -64,7 +62,7 @@ let previewUrl = null;
 let selectedZipFile = null;
 
 // ─── 3. Initialization ───
-elements.apiKey.value = sessionStorage.getItem(STORAGE_KEYS.apiKey) || "";
+let currentApiKey = sessionStorage.getItem(STORAGE_KEYS.currentApiKey) || "";
 elements.today.textContent = new Intl.DateTimeFormat(undefined, {
   month: "short", day: "numeric", year: "numeric",
 }).format(new Date());
@@ -413,55 +411,10 @@ async function readError(response) {
   }
 }
 
-// ─── 12. Connect ───
-async function connect() {
-  const key = elements.apiKey.value.trim();
-  if (!key) {
-    elements.connectionState.textContent = "Enter an API key to connect.";
-    elements.connectionState.dataset.state = "error";
-    return;
-  }
-
-  elements.connect.disabled = true;
-  elements.connect.textContent = "Checking…";
-  try {
-    const response = await fetch("/auth/me", {
-      headers: { "X-API-Key": key },
-      cache: "no-store",
-    });
-    if (!response.ok) throw new Error(await readError(response));
-    const client = await response.json();
-    sessionStorage.setItem(STORAGE_KEYS.apiKey, key);
-    elements.connectionState.textContent = `Connected as ${client.name}`;
-    elements.connectionState.dataset.state = "connected";
-    elements.clientName.textContent = client.name;
-
-    const guideWelcome = document.querySelector("#guide-welcome-msg");
-    if (guideWelcome) {
-      guideWelcome.textContent = `Welcome back, ${client.name}!`;
-    }
-    const guideBadge = document.querySelector("#guide-client-badge");
-    if (guideBadge) {
-      guideBadge.textContent = client.name;
-    }
-    hideAuthErrorBanner();
-  } catch (error) {
-    sessionStorage.removeItem(STORAGE_KEYS.apiKey);
-    elements.connectionState.textContent = error.message || "Connection unavailable.";
-    elements.connectionState.dataset.state = "error";
-    elements.clientName.textContent = "Local session";
-  } finally {
-    elements.connect.disabled = false;
-    elements.connect.textContent = "Connect";
-  }
-}
-
-
-// ─── 13. Analyze (Single Image) ───
+// ─── 12. Analyze (Single Image) ───
 async function analyze() {
   if (!selectedFile) return;
-  const apiKey = elements.apiKey.value.trim();
-  if (!apiKey) {
+  if (!currentApiKey) {
     setMessage(elements.formMessage, "Connect an API key before analyzing an image.", "error");
     return;
   }
@@ -480,7 +433,7 @@ async function analyze() {
     const endpoint = saveToRegister ? "/images" : "/predict";
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "X-API-Key": apiKey },
+      headers: { "X-API-Key": currentApiKey },
       body: formData,
     });
     if (!response.ok) throw new Error(await readError(response));
@@ -554,8 +507,7 @@ function resetZipUpload() {
 
 async function labelDataset() {
   if (!selectedZipFile) return;
-  const apiKey = elements.apiKey.value.trim();
-  if (!apiKey) {
+  if (!currentApiKey) {
     setMessage(elements.zipFormMessage, "Connect an API key before labeling.", "error");
     return;
   }
@@ -576,7 +528,7 @@ async function labelDataset() {
     const result = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/datasets/label");
-      xhr.setRequestHeader("X-API-Key", apiKey);
+      xhr.setRequestHeader("X-API-Key", currentApiKey);
       xhr.responseType = "blob";
 
       xhr.upload.addEventListener("progress", (e) => {
@@ -674,7 +626,6 @@ elements.dropZone.addEventListener("drop", (e) => {
   elements.dropZone.classList.remove("dragging");
   selectFile(e.dataTransfer.files[0]);
 });
-elements.connect.addEventListener("click", connect);
 elements.clear.addEventListener("click", resetAssessment);
 elements.analyze.addEventListener("click", analyze);
 elements.previewImage.addEventListener("load", resetCanvas);
@@ -702,7 +653,9 @@ elements.clearActivity.addEventListener("click", clearActivity);
 const disconnectBtn = document.querySelector("#disconnect-button");
 if (disconnectBtn) {
   disconnectBtn.addEventListener("click", () => {
-    sessionStorage.removeItem(STORAGE_KEYS.apiKey);
+    currentApiKey = "";
+    sessionStorage.removeItem(STORAGE_KEYS.currentApiKey);
+    sessionStorage.removeItem("aw-guide-dismissed");
     window.location.href = "/";
   });
 }
@@ -715,13 +668,24 @@ if (authRetryBtn) {
   });
 }
 
-// Dismiss guide button
+// Dismiss onboarding guide modal
+function dismissGuideModal() {
+  const overlay = document.querySelector("#workspace-guide-overlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.style.display = "none";
+  }
+  sessionStorage.setItem("aw-guide-dismissed", "true");
+}
+
 const dismissGuideBtn = document.querySelector("#dismiss-guide-btn");
 if (dismissGuideBtn) {
-  dismissGuideBtn.addEventListener("click", () => {
-    const guide = document.querySelector("#workspace-guide");
-    if (guide) guide.style.display = "none";
-  });
+  dismissGuideBtn.addEventListener("click", dismissGuideModal);
+}
+
+const enterWorkspaceBtn = document.querySelector("#enter-workspace-btn");
+if (enterWorkspaceBtn) {
+  enterWorkspaceBtn.addEventListener("click", dismissGuideModal);
 }
 
 // ─── 17. Workspace Session & Auth Handling ───
@@ -740,16 +704,12 @@ function hideAuthErrorBanner() {
 }
 
 async function initWorkspaceSession() {
-  const storedKey = sessionStorage.getItem(STORAGE_KEYS.apiKey);
-  if (!storedKey) {
+  if (!currentApiKey) {
     // If someone opens /workspace without a stored key, redirect them to /
     window.location.replace("/");
     return;
   }
 
-  elements.apiKey.value = storedKey;
-  elements.connect.disabled = true;
-  elements.connect.textContent = "Checking…";
   elements.connectionState.textContent = "Verifying session…";
   elements.connectionState.dataset.state = "idle";
   hideAuthErrorBanner();
@@ -757,13 +717,14 @@ async function initWorkspaceSession() {
   try {
     const response = await fetch("/auth/me", {
       method: "GET",
-      headers: { "X-API-Key": storedKey },
+      headers: { "X-API-Key": currentApiKey },
       cache: "no-store",
     });
 
     if (response.status === 401 || response.status === 403) {
       // Key invalid or revoked: remove stored key and redirect to landing page
-      sessionStorage.removeItem(STORAGE_KEYS.apiKey);
+      currentApiKey = "";
+      sessionStorage.removeItem(STORAGE_KEYS.currentApiKey);
       window.location.replace("/?error=auth_failed");
       return;
     }
@@ -789,14 +750,23 @@ async function initWorkspaceSession() {
     if (guideBadge) {
       guideBadge.textContent = client.name;
     }
+
+    // Show onboarding modal immediately after login until dismissed
+    const guideOverlay = document.querySelector("#workspace-guide-overlay");
+    if (guideOverlay) {
+      if (sessionStorage.getItem("aw-guide-dismissed") === "true") {
+        guideOverlay.classList.add("hidden");
+        guideOverlay.style.display = "none";
+      } else {
+        guideOverlay.classList.remove("hidden");
+        guideOverlay.style.display = "flex";
+      }
+    }
   } catch (error) {
     // Service or network error: do not display false auth success
     showAuthErrorBanner("Temporary service error: Unable to verify API key session with server.");
     elements.connectionState.textContent = "Service unavailable.";
     elements.connectionState.dataset.state = "error";
-  } finally {
-    elements.connect.disabled = false;
-    elements.connect.textContent = "Connect";
   }
 }
 
@@ -806,4 +776,3 @@ setInterval(checkHealth, 30000);
 renderActivityList();
 renderRegisterList();
 initWorkspaceSession();
-

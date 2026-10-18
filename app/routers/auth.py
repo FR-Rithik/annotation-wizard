@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_client, hash_key, require_admin
+from app.auth import get_current_client, hash_key, require_admin, get_demo_key
 from app.database import get_db
 from app.models import AccessRequest, ApiClient
 
@@ -111,6 +111,13 @@ def submit_access_request(
         "id": request_entry.id,
     }
 
+@router.post("/demo-api-key", status_code = 201)
+def use_demo_key(
+):    
+    demo_key = get_demo_key()
+    return {
+        "demo_key": demo_key,
+    }
 
 @router.get("/access-requests", status_code=200)
 def list_access_requests(
@@ -129,3 +136,4 @@ def list_access_requests(
         }
         for req in requests
     ]
+

@@ -50,5 +50,9 @@ def require_admin(api_key: str = Security(API_KEY_HEADER)):
     if not secrets.compare_digest(
         api_key.encode("utf-8"),
         settings.admin_api_key.encode("utf-8"),
-    ):
+    ): 
         raise HTTPException(status_code=403, detail="Admin access required")
+
+def get_demo_key(
+):
+    return settings.demo_api_key

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
 
     admin_api_key: str
+    demo_api_key: str
 
     
     model_path: str = "best.onnx"

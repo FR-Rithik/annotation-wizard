@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#123f39" />
   <meta name="description"
-    content="Annotation Wizard uses a YOLO-based deep-learning model to detect road damage and generate YOLO-format annotations. Upload a ZIP of road images, process the dataset, and download the generated label files." />
-  <title>Annotation Wizard | Automated Road Damage Dataset Annotation</title>
+    content="Annotation Wizard is an automated dataset-labeling platform designed to turn image datasets into machine-generated annotations, with human inspection to help verify and improve label quality. The current live demo uses a road-damage detection model and generates YOLO-format labels from a ZIP of road images." />
+  <title>Annotation Wizard | Automated Dataset Labeling</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -42,7 +42,7 @@
           <span class="live-dot" aria-hidden="true"></span>
           <span>Live Demo</span>
         </span>
-        <a class="nav-link" href="#classes">Damage Classes</a>
+        <a class="nav-link" href="#classes">Current Demo Model</a>
         <a class="nav-link" href="#workflow">Workflow</a>
         <a class="nav-link" href="#request-access">Request Access</a>
         <a class="nav-link-btn" href="#login-panel">Launch Workspace</a>
@@ -54,13 +54,13 @@
     <!-- ─── HERO SECTION ─── -->
     <section class="hero-section" aria-labelledby="hero-title">
       <div class="hero-container">
-        <div class="hero-badge">Automated Road Damage Annotation</div>
-        <h1 id="hero-title" class="hero-heading">Turn road images into labeled datasets.</h1>
+        <div class="hero-badge">Automated Dataset Labeling</div>
+        <h1 id="hero-title" class="hero-heading">Turn raw datasets into labeled data.</h1>
         <p class="hero-description">
-          Annotation Wizard uses a YOLO-based deep-learning model to detect road damage and
-          generate YOLO-format annotations. Upload a ZIP of road images, process the dataset,
-          and download the generated label files.
+          Upload your dataset and use AI-powered models to automatically generate labels.
+          Start with our road damage detection model demo.
         </p>
+
 
         <div class="tech-stack-row" aria-label="Technology stack">
           <span class="tech-pill">
@@ -85,12 +85,12 @@
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M3 4h10M3 8h10M3 12h6" />
             </svg>
-            Automated Dataset Annotation
+            Automated Dataset Labeling
           </span>
         </div>
 
         <div class="hero-actions">
-          <a class="primary-hero-btn" href="#login-panel">Try Demo Access</a>
+          <a id="primary-hero-btn" class="primary-hero-btn" href="#login-panel">Try Demo Access</a>
           <a class="secondary-hero-btn" href="#request-access">Request API Key</a>
         </div>
       </div>
@@ -100,11 +100,11 @@
     <section class="login-panel-section" id="login-panel" aria-labelledby="login-title">
       <div class="login-card">
         <div class="login-card-header">
-          <div class="login-badge">Demo &amp; Client Access</div>
+          <div class="login-badge">Platform Demo &amp; Client Access</div>
           <h2 id="login-title">Access the Workspace</h2>
           <p class="login-subtitle">
-            Enter this demo key or to launch the interactive workspace:
-            12e37c15be57465c689e231a4fa4152363d8aa2d0610ce73861bd4364fdad177
+            Enter the demo key to launch the workspace:
+            <!-- 12e37c15be57465c689e231a4fa4152363d8aa2d0610ce73861bd4364fdad177 -->
           </p>
         </div>
 
@@ -140,14 +140,14 @@
       </div>
     </section>
 
-    <!-- ─── SUPPORTED ROAD DAMAGE CLASSES ─── -->
+    <!-- ─── CURRENT DEMO MODEL ─── -->
     <section class="classes-section" id="classes" aria-labelledby="classes-title">
       <div class="section-container">
-        <div class="section-eyebrow">Damage Taxonomy</div>
-        <h2 id="classes-title" class="section-heading-dark">Supported Road Damage Classes</h2>
+        <div class="section-eyebrow">Current Model Demo</div>
+        <h2 id="classes-title" class="section-heading-dark">Road Damage Demo: Supported Classes</h2>
         <p class="section-subtext">
-          The trained model detects four standardized distress categories commonly analyzed in road maintenance and
-          pavement assessments:
+          The platform is intended to support automated dataset labeling across use cases. The currently available demo
+          model is trained to detect these four road-damage categories:
         </p>
 
         <div class="class-cards-grid">
@@ -203,10 +203,10 @@
             <path d="M10 6v5M10 14v.5" stroke-linecap="round" />
           </svg>
           <p>
-            <strong>Class Scope &amp; Review Notice:</strong>
-            The current model's D40 class is a pothole class and does not independently detect ruts or bumps.
-            Model predictions depend on confidence thresholds and preprocessing; automatically generated labels should
-            be reviewed by an annotator before use in training pipelines.
+            <strong>Demo Scope &amp; Human Review:</strong>
+            This is a road-damage demo, not a general-purpose model for every dataset or label type. The D40 class
+            represents potholes and does not independently detect ruts or bumps. Automated predictions can contain
+            errors, so human inspection and correction are important before labels are used for model training.
           </p>
         </div>
       </div>
@@ -215,39 +215,42 @@
     <!-- ─── WORKFLOW SECTION ─── -->
     <section class="workflow-section" id="workflow" aria-labelledby="workflow-title">
       <div class="section-container">
-        <div class="section-eyebrow">Architecture &amp; Pipeline</div>
+        <div class="section-eyebrow">Automated Labeling Workflow</div>
         <h2 id="workflow-title" class="section-heading-dark">How Annotation Wizard Works</h2>
         <p class="section-subtext">
-          From raw road imagery to clean YOLO bounding boxes in seconds.
+          From image datasets to machine-generated annotations, with human inspection as an important quality-control
+          step.
         </p>
 
         <div class="workflow-steps-grid">
           <div class="workflow-step-card">
             <div class="step-badge">1</div>
-            <h3>Upload Dataset ZIP</h3>
-            <p>Upload a ZIP archive containing road images (JPG, PNG, or WebP). The service enforces archive safety
-              limits (up to 50 MB, 100 images).</p>
+            <h3>Upload Image Dataset</h3>
+            <p>For the current demo, upload a ZIP archive of images (JPG, PNG, or WebP). Archive safety limits apply: up
+              to 50 MB and 100 images.</p>
           </div>
 
           <div class="workflow-step-card">
             <div class="step-badge">2</div>
-            <h3>CPU Inference</h3>
-            <p>The YOLO model runs inference using ONNX Runtime on CPU, minimizing hosting memory footprints while
-              delivering consistent detection quality.</p>
+            <h3>Automatic Labeling</h3>
+            <p>The currently available road-damage model runs on CPU through ONNX Runtime and predicts objects in each
+              image. Other model types are not available in this demo yet.</p>
           </div>
 
           <div class="workflow-step-card">
             <div class="step-badge">3</div>
-            <h3>YOLO Label Generation</h3>
-            <p>Bounding boxes are normalized into standard YOLO format with per-image <code>.txt</code> files, class
-              indices, and metadata.</p>
+            <h3>Generate Annotations</h3>
+            <p>For this object-detection demo, predictions are exported as normalized YOLO bounding boxes in per-image
+              <code>.txt</code> files, alongside the required class and dataset metadata.
+            </p>
           </div>
 
           <div class="workflow-step-card">
             <div class="step-badge">4</div>
-            <h3>Download Labels Only</h3>
-            <p>The backend bundles generated annotations, <code>classes.txt</code>, and <code>data.yaml</code> into a
-              lightweight download archive.</p>
+            <h3>Download and Inspect Labels</h3>
+            <p>Download a lightweight ZIP containing the generated label files and supporting metadata. Inspect and
+              correct the annotations before using them in a training pipeline; an interactive review-and-editing
+              workspace is a planned part of the broader platform.</p>
           </div>
         </div>
       </div>
@@ -260,7 +263,8 @@
           <div class="login-badge">Developer Access</div>
           <h2 id="request-title">Request API Access</h2>
           <p class="request-subtitle">
-            Need access for evaluating Annotation Wizard or integrating road damage labeling into your workflow?
+            Need access to evaluate Annotation Wizard or explore automated dataset labeling for your workflow? The
+            current demo is focused on road-damage images.
             Submit your details below. Each request is stored for the project owner to review.
           </p>
         </div>
@@ -284,14 +288,14 @@
           <div class="form-group">
             <label class="field-label" for="req-org">Organization <span class="optional-label">(optional)</span></label>
             <input id="req-org" type="text" name="organization" maxlength="100"
-              placeholder="e.g. Acme Infrastructure / Independent Researcher" />
+              placeholder="e.g. Company / University / Independent Researcher" />
             <span class="field-error" id="err-org"></span>
           </div>
 
           <div class="form-group">
             <label class="field-label" for="req-use">Intended use <span class="req-star">*</span></label>
             <textarea id="req-use" name="intended_use" rows="4" minlength="5" maxlength="1000" required
-              placeholder="Briefly describe how you plan to use Annotation Wizard (e.g. recruiter portfolio review, municipal road inspection prototype, ML dataset enrichment)..."></textarea>
+              placeholder="Briefly describe your intended use (e.g. testing the road-damage demo, dataset preparation, or ML research)..."></textarea>
             <div class="char-counter"><span id="use-char-count">0</span> / 1000 characters</div>
             <span class="field-error" id="err-use"></span>
           </div>
@@ -322,13 +326,14 @@
         <div class="brand">
           <span class="brand-text">Annotation Wizard</span>
         </div>
-        <p class="footer-tagline">Automated Road Damage Dataset Annotation using YOLO &amp; ONNX Runtime.</p>
+        <p class="footer-tagline">An automated dataset-labeling platform, currently featuring a YOLO-based road-damage
+          demo.</p>
       </div>
 
       <div class="footer-links-col">
         <h4>Navigation</h4>
         <a href="/workspace">Workspace</a>
-        <a href="#classes">Damage Classes</a>
+        <a href="#classes">Current Demo Model</a>
         <a href="#workflow">Workflow</a>
         <a href="#request-access">Request Access</a>
       </div>
@@ -343,7 +348,7 @@
     </div>
 
     <div class="footer-bottom">
-      <p>&copy; Annotation Wizard. Road damage inspection and dataset labeling intelligence.</p>
+      <p>&copy; Annotation Wizard. Automated dataset labeling with human review in the loop.</p>
     </div>
   </footer>
 

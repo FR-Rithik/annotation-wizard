@@ -8,6 +8,7 @@
   const STORAGE_KEY = "aw-api-key";
 
   // Elements
+  const demoBtn = document.querySelector("#primary-hero-btn");
   const apiKeyInput = document.querySelector("#landing-api-key");
   const toggleVisibilityBtn = document.querySelector("#toggle-key-visibility");
   const eyeIcon = document.querySelector("#eye-icon");
@@ -39,6 +40,30 @@
       "Your API key session was revoked or invalid. Please enter an active key.",
       "error"
     );
+  }
+
+  // try demo access button
+
+  console.log("demoBtn", demoBtn);
+  let demoKey = false;
+  if (demoBtn) {
+    console.log("hello there");
+    demoBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const response = await fetch("/auth/demo-api-key", {
+        method: "POST"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        apiKeyInput.value = data.demo_key;
+        demoKey = true;
+        console.log(response);
+      }
+      // document.querySelector("#login-panel").scrollIntoView({ behavior: "smooth" });
+    });
+  }
+  if (demoKey && apiKeyInput) {
+    apiKeyInput.value = "demo-key";
   }
 
   // Pre-fill existing session key if available
@@ -138,6 +163,8 @@
           const clientData = await response.json();
           // Store key in sessionStorage for this browser tab
           sessionStorage.setItem(STORAGE_KEY, rawKey);
+          sessionStorage.removeItem("aw-guide-dismissed");
+          sessionStorage.setItem("aw-show-welcome-modal", "true");
 
           const clientName = clientData && clientData.name ? clientData.name : "client";
           showLoginMessage(
@@ -292,3 +319,4 @@
     });
   }
 })();
+
