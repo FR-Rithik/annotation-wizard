@@ -1,3 +1,4 @@
+
 fastapi==0.115.8
 uvicorn[standard]==0.34.0
 pydantic-settings==2.7.0
@@ -6,11 +7,14 @@ pytest==8.3.4
 httpx==0.28.1
 
 psycopg2-binary==2.9.10
-
 sqlalchemy==2.0.36
 alembic==1.14.0
 
 python-multipart
-ultralytics==8.4.165
+
+# ONNX inference without PyTorch / Ultralytics
+onnxruntime==1.22.0
+numpy==1.26.4
+Pillow==11.1.0
 
 ruff

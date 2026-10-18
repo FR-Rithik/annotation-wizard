@@ -13,8 +13,10 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
 
     admin_api_key: str
+    demo_api_key: str
 
-    model_path: str = "best.pt"
+    
+    model_path: str = "best.onnx"
     model_confidence_threshold: float = 0.25
     model_imgsz: int = 640
     max_upload_bytes: int = 1 * 1024 * 1024  # 1 MB
@@ -25,6 +27,7 @@ class Settings(BaseSettings):
     max_dataset_uncompressed_bytes: int = 100 * 1024 * 1024
     max_dataset_images: int = 100
     max_dataset_image_bytes: int = 5 * 1024 * 1024
+    dataset_storage_dir: str = "data/datasets"
 
     database_url_override: str | None = Field(
         default=None,

@@ -1,4 +1,4 @@
-ADMIN_KEY = "supersecretadminkey"
+ADMIN_KEY = "supersecretkey"
 
 
 def test_create_key_as_admin(client):

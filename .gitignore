@@ -1,38 +1,40 @@
-# Virtual environments
+# Python virtual environments
 .venv/
+.venv312/
 venv/
 env/
 myenv/
 app/myenv/
 
-# Python cache
+# Python caches and test artifacts
 __pycache__/
-*.pyc
-*.pyo
-
-# Env files
-.env
-
-# Test artifacts
+*.py[cod]
 .pytest_cache/
+.pytest-tmp/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
 *.db
 *.db-shm
 *.db-wal
 
-# OS
+# OS/editor files
 .DS_Store
 Thumbs.db
-
-# Editor
 .vscode/
 .idea/
 
-# Uploaded files
+# Uploaded files and generated archives
 data/uploads/
+*.zip
 
-# Local ML checkpoints and manual test images
-# *.pt
-# /image.png
+# Local PyTorch checkpoint; deployment uses best.onnx
+best.pt
 
-#Local Notes/Docs
+# Local notes
 explanations/
+data/datasets/

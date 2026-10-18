@@ -1,26 +1,22 @@
-# Secrets — never bake local environment files into the image
+# Secrets
 .env
 .env.*
 !.env.example
 
-# Git and Python development files
+# Git and local Python environments
 .git/
 .venv/
+.venv312/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest-tmp/
 
-# Local databases and runtime uploads
-*.db
-*.db-shm
-*.db-wal
-data/
-
-# Test and development artifacts
+# Test/development artifacts
 tests/
 *.zip
+best.pt
 image.png
 image1.png
 app/static/styles_old.css

@@ -1,0 +1,17 @@
+Annotation Wizard Labeled Dataset
+=================================
+
+Dataset Name: demo_dataset
+Job ID: 1b9c2f84c82e
+Total images: 10
+Reviewed images: 2
+Images with annotations: 10
+Total annotations: 23
+
+Class Breakdown:
+- D00 (Longitudinal Crack): 1
+- D10 (Transverse Crack): 3
+- D20 (Alligator Crack): 4
+- D40 (Pothole): 15
+
+Exported at: 2026-10-12T14:29:10.803269Z
