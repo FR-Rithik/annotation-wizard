@@ -30,7 +30,7 @@ Thumbs.db
 
 # Uploaded files and generated archives
 data/uploads/
-*.zip
+# *.zip
 
 # Local PyTorch checkpoint; deployment uses best.onnx
 best.pt
