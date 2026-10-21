@@ -378,24 +378,42 @@ function selectFile(file) {
   elements.previewImage.onload = resetCanvas;
 }
 
+
+const DEMO_IMAGE_PATH = "/static/reference-image.png";
+const DEMO_IMAGE_NAME = "reference-image.png";
+
+async function loadDemoImage() {
+  try {
+    setMessage(elements.formMessage, "Loading demo image…");
+    const response = await fetch(DEMO_IMAGE_PATH);
+    if (!response.ok) throw new Error("Could not load demo image from server.");
+    const blob = await response.blob();
+    const file = new File([blob], DEMO_IMAGE_NAME, { type: "image/jpeg" });
+    selectFile(file);
+    setMessage(elements.formMessage, "Demo image loaded! Click 'Analyze' to scan.", "success");
+  } catch (err) {
+    setMessage(elements.formMessage, "Failed to load demo image: " + err.message, "error");
+  }
+}
+
 function resetAssessment() {
   selectedFile = null;
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = null;
   elements.fileInput.value = "";
-  elements.previewImage.src = "/reference-image";
-  elements.previewImage.alt = "Reference road damage examples";
-  elements.fileName.textContent = "Reference image";
+  elements.previewImage.removeAttribute("src");
+  elements.previewImage.alt = "Selected roadway photo";
+  elements.fileName.textContent = "No image selected";
   elements.dropZone.classList.remove("has-upload");
   elements.analyze.disabled = true;
-  elements.reportState.textContent = "Awaiting image";
+  elements.reportState.textContent = "Ready";
   elements.reportState.dataset.status = "idle";
   elements.total.textContent = "0";
-  elements.summary.textContent = "Choose an image to start a new road condition assessment.";
+  elements.summary.textContent = "Upload a photo or try the demo image to scan.";
   elements.damageTypes.replaceChildren();
   const empty = document.createElement("p");
   empty.className = "empty-row";
-  empty.textContent = "Results will appear here.";
+  empty.textContent = "No detections yet.";
   elements.damageTypes.append(empty);
   resetCanvas();
   setMessage(elements.formMessage);
@@ -482,7 +500,7 @@ function selectZipFile(file) {
   elements.zipFileLabel.textContent = `${file.name} (${formatFileSize(file.size)})`;
   elements.zipDropZone.classList.add("has-file");
   elements.zipLabel.disabled = false;
-  if (elements.zipReview) elements.zipReview.disabled = false;
+  if (elements.zipReview) elements.zipReview.disabled = true;
   setMessage(elements.zipFormMessage);
 }
 
@@ -585,6 +603,8 @@ async function labelDataset() {
 
     setMessage(elements.zipFormMessage, "Labeled dataset ready for download!", "success");
     addActivity("dataset", fileName, "Labeled", "success");
+    // Enable review only now that labeling succeeded
+    if (elements.zipReview) elements.zipReview.disabled = false;
 
   } catch (error) {
     elements.zipProgressFill.classList.remove("indeterminate");
@@ -629,6 +649,29 @@ elements.dropZone.addEventListener("drop", (e) => {
 elements.clear.addEventListener("click", resetAssessment);
 elements.analyze.addEventListener("click", analyze);
 elements.previewImage.addEventListener("load", resetCanvas);
+elements.previewImage.addEventListener("click", () => {
+  elements.fileInput.click();
+});
+elements.dropZone.addEventListener("click", (e) => {
+  if (e.target.closest("button") || e.target.closest("input")) return;
+  elements.fileInput.click();
+});
+
+const loadDemoBtn = document.querySelector("#load-demo-btn");
+if (loadDemoBtn) {
+  loadDemoBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    loadDemoImage();
+  });
+}
+
+const refGuideImg = document.querySelector("#reference-guide-image");
+if (refGuideImg) {
+  refGuideImg.style.cursor = "pointer";
+  refGuideImg.addEventListener("click", () => {
+    elements.fileInput.click();
+  });
+}
 
 // ZIP drag & drop
 elements.zipDropZone.addEventListener("click", () => elements.zipFileInput.click());
