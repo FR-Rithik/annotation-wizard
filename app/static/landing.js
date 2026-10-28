@@ -49,7 +49,7 @@
   if (demoBtn) {
     console.log("hello there");
     demoBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
+      // e.preventDefault();
       const response = await fetch("/auth/demo-api-key", {
         method: "POST"
       });
